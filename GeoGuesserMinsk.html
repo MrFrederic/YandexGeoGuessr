@@ -207,10 +207,10 @@
         }
 
         function calculatePoints(distance) {
-            const maxDistance = 10; // maximum distance in kilometers
+            const maxDistance = 8; // maximum distance in kilometers
             const maxPoints = 5000; // maximum points
-            const decayRate = 0.2; // decay rate (higher value means faster decay)
-            if (distance <= 0) {
+            const decayRate = 0.4; // decay rate (higher value means faster decay)
+            if (distance <= 0.1) {
                 return maxPoints;
             } else if (distance >= maxDistance) {
                 return 0;
@@ -425,7 +425,7 @@
 
 
 
-                <button class="button continue-button">Next round</button>
+                <button class="button continue-button">Continue</button>
 
 
 
@@ -490,7 +490,7 @@
 
 
 
-                    Total Points: ${totalPoints}<br>
+                    Total Points: ${totalPoints} / 25000<br>
 
 
 
