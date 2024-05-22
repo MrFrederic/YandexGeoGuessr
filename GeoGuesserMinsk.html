@@ -128,12 +128,19 @@
             bottom: 10px;
             right: 10px;
             width: 40%;
-            height: 35%;
+            height: 40%;
             border: 2px solid #ccc;
             border-radius: 5px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             overflow: hidden;
             background-color: #ffffff;
+            transition: width 0.3s, height 0.3s, opacity 0.3s;
+        }
+        
+        .miniMap-container.collapsed {
+            width: 10%;
+            height: 10%;
+            opacity: 0.5;
         }
         
         .results-overlay {
@@ -155,8 +162,17 @@
             pointer-events: none;
         }
         
-        .ymaps-2-1-79-float-button {
-            max-width: none;
+        .ymaps-2-1-79-map {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        @media (max-width: 768px) {
+            .miniMap-container {
+                width: 40% !important;
+                height: 35% !important;
+                opacity: 1 !important;
+            }
         }
     </style>
     <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU&apikey=536c2a14-a4d3-4c57-ad1e-8bede76004fc"></script>
@@ -203,7 +219,6 @@
                 return Math.round(points);
             }
         }
-
         async function initGame() {
             await ymaps.ready(initYandexMaps);
             showStartScreen();
@@ -212,9 +227,15 @@
         function showLoadingScreen() {
             const loadingScreen = createDivElement('loading-screen', `
 
+
+
                 <div class="loading-text">Loading</div>
 
+
+
                 <div class="loading-circle"></div>
+
+
 
             `);
             document.body.appendChild(loadingScreen);
@@ -226,17 +247,24 @@
                 loadingScreen.remove();
             }
         }
-
         async function showStartScreen() {
             destroyMiniMap();
             await setStartPanorama();
             const startScreen = createDivElement('start-screen', `
 
+
+
                 <div class="title">Minsk GeoGuessr</div>
+
+
 
                 <div class="subtitle">GeoGuessr that uses Yandex maps!</div>
 
+
+
                 <button class="button start-button">Start Game</button>
+
+
 
             `);
             document.body.appendChild(startScreen);
@@ -252,7 +280,6 @@
             div.innerHTML = innerHTML;
             return div;
         }
-
         async function initYandexMaps() {
             if (!ymaps.panorama.isSupported()) {
                 alert('Panorama is not supported in this browser.');
@@ -267,9 +294,8 @@
         function initMiniMap() {
             miniMapContainer = document.createElement('div');
             miniMapContainer.id = 'miniMap';
-            miniMapContainer.className = 'miniMap-container';
+            miniMapContainer.className = 'miniMap-container'; // Start as collapsed
             document.body.appendChild(miniMapContainer);
-            console.log('Initializing miniMap...');
             miniMap = new ymaps.Map('miniMap', {
                 center: [53.901732, 27.554132],
                 zoom: 10,
@@ -283,23 +309,35 @@
                 const coords = event.get('coords');
                 marker.geometry.setCoordinates(coords);
             });
-            console.log('miniMap initialized.');
+            // Add event listeners for hover
+            miniMapContainer.addEventListener('mouseenter', expandMiniMap);
+            miniMapContainer.addEventListener('mouseleave', collapseMiniMap);
+            // Check if the device is mobile
+
+            if (!isMobileDevice()) {
+                miniMapContainer.className = 'miniMap-container';
+            }
         }
 
         function destroyMiniMap() {
             if (miniMapContainer) {
                 miniMapContainer.remove();
                 miniMapContainer = null;
-                console.log('miniMapContainer destroyed.');
             }
         }
 
         function createInfoBar() {
             infoBar = createDivElement('info-bar', `
 
+
+
                 <div class="round-counter">Round: ${currentRound}/${roundsInGame}</div>
 
+
+
                 <button class="button check-button" onclick="checkMarker()">Check results</button>
+
+
 
             `);
             document.body.appendChild(infoBar);
@@ -311,7 +349,6 @@
                 infoBar = null;
             }
         }
-
         async function updatePanorama() {
             try {
                 currentPanoramaCoordinates = panorama.getPosition();
@@ -322,7 +359,6 @@
                 console.error('Error setting panorama:', error.message);
             }
         }
-
         async function setStartPanorama() {
             showLoadingScreen();
             const presetCoordinates = [
@@ -351,7 +387,6 @@
             }
             hideLoadingScreen();
         }
-
         async function openRandomPanorama() {
             function getRandomCoordinates() {
                 const lat = Math.random() * (53.975312 - 53.803576) + 53.803576;
@@ -384,9 +419,15 @@
             document.body.appendChild(overlayDiv);
             const resultsOverlay = createDivElement('results-overlay', `
 
+
+
                 <div class="results-text">Distance: ${distance.toFixed(2)} km<br>Points: ${points}</div>
 
+
+
                 <button class="button continue-button">Next round</button>
+
+
 
             `);
             resultsOverlay.querySelector('.continue-button').onclick = function() {
@@ -443,13 +484,23 @@
             document.body.appendChild(finalOverlayDiv);
             const resultsOverlay = createDivElement('results-overlay', `
 
+
+
                 <div class="results-text">
+
+
 
                     Total Points: ${totalPoints}<br>
 
+
+
                     <button class="button continue-button">Finish game</button>
 
+
+
                 </div>
+
+
 
             `);
             resultsOverlay.querySelector('.continue-button').onclick = async function() {
@@ -485,6 +536,18 @@
             });
         }
 
+        function expandMiniMap() {
+            miniMapContainer.classList.remove('collapsed');
+        }
+
+        function collapseMiniMap() {
+            miniMapContainer.classList.add('collapsed');
+        }
+
+        function isMobileDevice() {
+            return /Mobi|Android/i.test(navigator.userAgent);
+        }
+
         function newGame() {
             currentRound = 0;
             roundData = [];
@@ -501,7 +564,6 @@
                 createInfoBar();
             }
         }
-
         initGame();
     </script>
 </head>
