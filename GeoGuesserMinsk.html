@@ -10,6 +10,7 @@
         .player {
             width: 100%;
             height: 100%;
+            overflow: hidden;
             margin: 0;
             padding: 0;
         }
@@ -25,8 +26,8 @@
             position: absolute;
             bottom: 10px;
             right: 10px;
-            width: 400px;
-            height: 200px;
+            width: 40%;
+            height: 40%;
             border: 1px solid #ccc;
         }
         
@@ -63,6 +64,10 @@
         .ymaps-2-1-79-map-copyrights-promo {
             display: none;
             pointer-events: none;
+        }
+        
+        .ymaps-2-1-79-float-button {
+            max-width: none;
         }
     </style>
     <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU&apikey=536c2a14-a4d3-4c57-ad1e-8bede76004fc"></script>
@@ -108,15 +113,27 @@
                     zoom: 10,
                     controls: []
                 });
-                const firstButton = new ymaps.control.Button("Проверить");
-                miniMap.controls.add(firstButton, {
+                const checkButton = new ymaps.control.Button({
+                    data: {
+                        content: "Проверить"
+                    },
+                    options: {
+                        maxWidth: 150
+                    }
+                });
+                miniMap.controls.add(checkButton, {
                     float: 'right'
                 });
-                firstButton.events.add('press', checkMarker);
+                checkButton.events.add('press', checkMarker);
                 marker = new ymaps.Placemark([53.901732, 27.554132], {}, {
                     draggable: true
                 });
                 miniMap.geoObjects.add(marker);
+                // Add event listener for click on miniMap
+                miniMap.events.add('click', function(event) {
+                    const coords = event.get('coords');
+                    marker.geometry.setCoordinates(coords);
+                });
             }
 
             function getRandomCoordinates() {
@@ -155,7 +172,7 @@
                 const dLon = toRadians(lon2 - lon1);
                 const rLat1 = toRadians(lat1);
                 const rLat2 = toRadians(lat2);
-                const a = Math.sin(dLat / 2) ** 2 + Math.cos(rLat1) * Math.cos(rLat2) * Math.sin(dLon / 2) ** 2;
+                const a = Math.sin(dLat / 2) * 2 + Math.cos(rLat1) * Math.cos(rLat2) * Math.sin(dLon / 2) * 2;
                 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                 return R * c;
             }
@@ -173,7 +190,6 @@
                     return Math.round(points);
                 }
             }
-
             async function checkMarker() {
                 const distance = calculateDistance(marker.geometry.getCoordinates(), currentPanoramaCoordinates);
                 const points = calculatePoints(distance);
@@ -197,6 +213,7 @@
                 const distancePointsDiv = document.createElement('div');
                 distancePointsDiv.className = 'distance-points';
                 distancePointsDiv.innerHTML = `Distance: ${distance.toFixed(2)} km
+
 				<br>Points: ${points}`;
                 overlayDiv.appendChild(distancePointsDiv);
                 const overlayMap = new ymaps.Map(overlayDiv, {
