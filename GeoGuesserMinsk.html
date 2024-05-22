@@ -15,11 +15,64 @@
             padding: 0;
         }
         
-        .start-button {
+        .loading-screen,
+        .start-screen,
+        .overlay-map {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+            color: white;
+            z-index: 2000;
+        }
+        
+        .loading-text {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        
+        .loading-circle {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .start-screen {
+            flex-direction: column;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .start-screen .title {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .start-screen .subtitle {
+            font-size: 24px;
+            margin-bottom: 40px;
+        }
+        
+        .start-screen .start-button {
+            padding: 10px 20px;
+            font-size: 24px;
+            cursor: pointer;
         }
         
         .miniMap-container {
@@ -29,33 +82,35 @@
             width: 40%;
             height: 40%;
             border: 1px solid #ccc;
+            display: none;
         }
         
-        .overlay-map {
+        .results-overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.9);
-            z-index: 2000;
-        }
-        
-        .distance-points {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: white;
-            padding: 10px;
-            border: 1px solid #ccc;
+            height: 33%;
+            /* Upper third */
+            background-color: rgba(0, 0, 0, 0.5);
+            /* 50% opacity black */
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             z-index: 2001;
         }
         
-        .close-button {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 2001;
+        .results-overlay .results-text {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .results-overlay .continue-button {
+            padding: 10px 20px;
+            font-size: 24px;
+            cursor: pointer;
         }
         
         .ymaps-2-1-79-panorama-control__inception,
@@ -71,23 +126,54 @@
         }
     </style>
     <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU&apikey=536c2a14-a4d3-4c57-ad1e-8bede76004fc"></script>
+</head>
+
+<body>
+    <div id="player" class="player"></div>
+    <div id="miniMap" class="miniMap-container"></div>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            let player;
-            let currentPanoramaCoordinates;
-            let miniMap;
-            let marker;
+            let player, currentPanoramaCoordinates, miniMap, marker;
 
             function initGame() {
-                const startButton = document.createElement('button');
-                startButton.className = 'start-button';
-                startButton.textContent = 'Start Game';
-                document.body.appendChild(startButton);
-                startButton.onclick = function() {
-                    startButton.remove();
+                showLoadingScreen();
+                ymaps.ready(initYandexMaps);
+            }
+
+            function showLoadingScreen() {
+                const loadingScreen = createDivElement('loading-screen', `
+
+                    <div class="loading-text">Loading</div>
+
+                    <div class="loading-circle"></div>
+
+                `);
+                document.body.appendChild(loadingScreen);
+            }
+
+            function showStartScreen() {
+                const startScreen = createDivElement('start-screen', `
+
+                    <div class="title">GeoGuessr</div>
+
+                    <div class="subtitle">Explore the world and test your knowledge!</div>
+
+                    <button class="start-button">Start Game</button>
+
+                `);
+                document.body.appendChild(startScreen);
+                startScreen.querySelector('.start-button').onclick = function() {
+                    startScreen.remove();
+                    document.querySelector('.miniMap-container').style.display = 'block';
                     openRandomPanorama();
                 };
-                ymaps.ready(initYandexMaps);
+            }
+
+            function createDivElement(className, innerHTML) {
+                const div = document.createElement('div');
+                div.className = className;
+                div.innerHTML = innerHTML;
+                return div;
             }
 
             function initYandexMaps() {
@@ -102,12 +188,19 @@
                         player = new ymaps.panorama.Player('player', panoramas[0], {
                             controls: ['zoomControl']
                         });
+                        currentPanoramaCoordinates = panoramas[0].getPosition();
+                        document.querySelector('.loading-screen').remove();
+                        showStartScreen();
                     } else {
                         alert('No panoramas found at the default location.');
                     }
                 }, function(error) {
                     alert('Error locating panorama: ' + error.message);
                 });
+                initMiniMap();
+            }
+
+            function initMiniMap() {
                 miniMap = new ymaps.Map('miniMap', {
                     center: [53.901732, 27.554132],
                     zoom: 10,
@@ -125,15 +218,21 @@
                     float: 'right'
                 });
                 checkButton.events.add('press', checkMarker);
-                marker = new ymaps.Placemark([53.901732, 27.554132], {}, {
+                marker = new ymaps.Placemark([1.00, 1.00], {}, {
                     draggable: true
                 });
                 miniMap.geoObjects.add(marker);
-                // Add event listener for click on miniMap
                 miniMap.events.add('click', function(event) {
                     const coords = event.get('coords');
                     marker.geometry.setCoordinates(coords);
                 });
+            }
+
+            function destroyMiniMap() {
+                if (miniMap) {
+                    miniMap.destroy();
+                    miniMap = null;
+                }
             }
 
             function getRandomCoordinates() {
@@ -141,7 +240,6 @@
                 const lon = Math.random() * (27.703780 - 27.385778) + 27.385778;
                 return [lat, lon];
             }
-
             async function openRandomPanorama() {
                 if (!player) {
                     alert('Player is not initialized yet.');
@@ -172,7 +270,7 @@
                 const dLon = toRadians(lon2 - lon1);
                 const rLat1 = toRadians(lat1);
                 const rLat2 = toRadians(lat2);
-                const a = Math.sin(dLat / 2) * 2 + Math.cos(rLat1) * Math.cos(rLat2) * Math.sin(dLon / 2) * 2;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(rLat1) * Math.cos(rLat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
                 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                 return R * c;
             }
@@ -199,38 +297,35 @@
             }
 
             function showRoundResults(distance, points, userCoordinates, panoramaCoordinates) {
-                const overlayDiv = document.createElement('div');
-                overlayDiv.className = 'overlay-map';
+                const overlayDiv = createDivElement('overlay-map', '');
                 document.body.appendChild(overlayDiv);
-                const closeButton = document.createElement('button');
-                closeButton.className = 'close-button';
-                closeButton.textContent = 'Continue';
-                closeButton.onclick = function() {
+                // Create the results overlay
+                const resultsOverlay = createDivElement('results-overlay', `
+
+                    <div class="results-text">Distance: ${distance.toFixed(2)} km<br>Points: ${points}</div>
+
+                    <button class="continue-button">Continue</button>
+
+                `);
+                // Continue button action
+                resultsOverlay.querySelector('.continue-button').onclick = function() {
                     overlayDiv.remove();
                     openRandomPanorama();
+                    destroyMiniMap();
+                    initMiniMap(); // Reset the miniMap after showing round results
                 };
-                overlayDiv.appendChild(closeButton);
-                const distancePointsDiv = document.createElement('div');
-                distancePointsDiv.className = 'distance-points';
-                distancePointsDiv.innerHTML = `Distance: ${distance.toFixed(2)} km
+                overlayDiv.appendChild(resultsOverlay);
+                showOverlayMap(overlayDiv, userCoordinates, panoramaCoordinates);
+            }
 
-				<br>Points: ${points}`;
-                overlayDiv.appendChild(distancePointsDiv);
+            function showOverlayMap(overlayDiv, userCoordinates, panoramaCoordinates) {
                 const overlayMap = new ymaps.Map(overlayDiv, {
                     center: [(userCoordinates[0] + panoramaCoordinates[0]) / 2, (userCoordinates[1] + panoramaCoordinates[1]) / 2],
                     zoom: 10,
                     controls: []
                 });
-                const userMarker = new ymaps.Placemark(userCoordinates, {
-                    hintContent: 'Your guess'
-                }, {
-                    preset: 'islands#blueIcon'
-                });
-                const panoramaMarker = new ymaps.Placemark(panoramaCoordinates, {
-                    hintContent: 'Actual location'
-                }, {
-                    preset: 'islands#greenIcon'
-                });
+                const userMarker = createPlacemark(userCoordinates, 'Your guess', 'islands#blueIcon');
+                const panoramaMarker = createPlacemark(panoramaCoordinates, 'Actual location', 'islands#greenIcon');
                 overlayMap.geoObjects.add(userMarker);
                 overlayMap.geoObjects.add(panoramaMarker);
                 const line = new ymaps.Polyline([userCoordinates, panoramaCoordinates], {}, {
@@ -238,15 +333,35 @@
                     strokeWidth: 4
                 });
                 overlayMap.geoObjects.add(line);
+                // Adjust the map bounds to fit both points while avoiding the overlay area
+                const bounds = overlayMap.geoObjects.getBounds();
+                const mapHeight = overlayDiv.clientHeight;
+                const overlayHeight = mapHeight / 3;
+                overlayMap.setBounds(bounds, {
+                    checkZoomRange: true,
+                    duration: 1000, // Duration of animation in ms
+                    useMapMargin: true
+                });
+                // Adding margin to avoid overlay area on top
+                const marginArea = {
+                    top: overlayHeight,
+                    left: 0,
+                    bottom: 0,
+                    right: 0
+                };
+                overlayMap.margin.addArea(marginArea);
+            }
+
+            function createPlacemark(coordinates, hintContent, preset) {
+                return new ymaps.Placemark(coordinates, {
+                    hintContent
+                }, {
+                    preset
+                });
             }
             initGame();
         });
     </script>
-</head>
-
-<body>
-    <div id="player" class="player"></div>
-    <div id="miniMap" class="miniMap-container"></div>
 </body>
 
 </html>
